@@ -1,0 +1,251 @@
+( Noe )
+
+|00 @System &vector $2 &expansion $2 &wst $1 &rst $1 &metadata $2 &r $2 &g $2 &b $2 &debug $1 &state $1
+|10 @Console &vector $2 &read $1 &pad $4 &type $1 &write $1 &error $1
+|20 @Screen &vector $2 &width $2 &height $2 &auto $1 &pad $1 &x $2 &y $2 &addr $2 &pixel $1 &sprite $1
+|80 @Controller &vector $2 &button $1 &key $1
+|90 @Mouse &vector $2 &x $2 &y $2 &state $1 &chord $1 &pad $4 &scrolly &scrolly-hb $1 &scrolly-lb $1
+|a0 @File &vector $2 &success $2 &stat $2 &delete $1 &append $1 &name $2 &length $2 &read $2 &write $2
+|0002 @padding
+|0044 @buttons-y
+|0007 @buttons-len
+|0040 @width
+|000
+
+	@name $40
+	@selected $1
+	@erase $1
+	@mouse-x $2
+	@mouse-y $2
+
+|100
+
+@On-reset ( -> )
+	;meta .System/metadata DEO2
+	#b3f0 .System/r DEO2
+	#d6f0 .System/g DEO2
+	#98f0 .System/b DEO2
+	<load-theme>
+	#0044 .Screen/width DEO2
+	#004e .Screen/height DEO2
+	;on-key .Controller/vector DEO2
+	;on-char .Console/vector DEO2
+	;on-mouse .Mouse/vector DEO2
+	<init>
+	BRK
+
+@on-key ( -> )
+	.Controller/key DEI [ LIT "1 ] SUB DUP #02 GTH ?{ DUP actions/<call> }
+	POP [ LIT2 01 -Controller/button ] DEI NEQ ?{
+		.Controller/key DEI DUP [ LIT "q ] EQU ?<exit>
+		DUP [ LIT "s ] EQU ?<save>
+		DUP [ LIT "o ] EQU ?<open>
+		[ LIT "n ] EQU ?<clear> }
+	BRK
+
+@on-char ( -> )
+	[ LIT2 02 -Console/type ] DEI NEQ ?{
+		.Console/read DEI [ LIT &len $1 ] INCk ,&len STR
+		STZ
+		BRK }
+	#0000 DUP2 .Console/vector DEO2
+	<open>
+	BRK
+
+@on-mouse ( -> )
+	[ LIT2 00 -Screen/auto ] DEO
+	;cursor-icn .Screen/addr DEO2
+	[ LIT2 40 -mouse-x ] LDZ2 .mouse-y LDZ2 /<draw>
+	[ LIT2 00 -Mouse/state ] DEI NEQ STHk DUP ADD #41 ADD .Mouse/x DEI2 .Mouse/y DEI2 /<draw>
+	STHr [ LIT &tap $1 ] OVR ,&tap STR
+	DUP2 #0101 NEQ2 ?{ ;<line>
+		/<canvas> }
+	#0100 NEQ2 ?{
+		;<dot>
+		/<canvas>
+		.Mouse/y DEI2 ;buttons-y LTH2 ?{
+			.Mouse/x DEI2 ;padding SUB2 #03 SFT2 NIP INCk .buttons-len GTH ?{ DUP actions/<call> }
+			POP }
+		}
+	.Mouse/x DEI2 .mouse-x STZ2
+	.Mouse/y DEI2 .mouse-y STZ2
+	BRK
+	&<draw> ( mode x* y* -- )
+	#0003 SUB2 .Screen/y DEO2
+	#0003 SUB2 .Screen/x DEO2
+	.Screen/sprite DEO
+	JMP2r
+	&<canvas> ( routine* -- )
+	.mouse-x LDZ2 ;padding SUB2 #0040 LTH2 ?{ POP2 JMP2r }
+	.mouse-y LDZ2 ;padding SUB2 #0040 LTH2 ?{ POP2 JMP2r }
+	STH2
+	.Mouse/x DEI2 ;padding SUB2 DUP2 #003f GTH2 ?&no
+	.Mouse/y DEI2 ;padding SUB2 DUP2 #0040 LTH2 ?{ POP2 !&no }
+	JMP2r
+	&no ( x* `x* -- )
+	POP2r POP2 JMP2r
+
+@<exit> ( -> )
+	#800f DEO
+	BRK
+
+@<init> ( -- )
+	actions/<pen>
+	<draw-canvas>
+	!<draw-buttons>
+
+@<clear> ( -- )
+	;&command .System/expansion DEO2
+	!<draw-canvas>
+	&command [ 00 0200 0000 =canvas 00 ]
+
+@<open> ( -- )
+	;<clear>/command .System/expansion DEO2
+	.File/read
+	( >> )
+	&<io> ( port -- )
+	;name LDZk ?{ POP2 ;note-txt }
+	.File/name DEO2
+	#0200 .File/length DEO2
+	;canvas ROT DEO2
+	!<draw-canvas>
+
+@<save> ( -- )
+	.File/write !<open>/<io>
+
+@<dot> ( x* y* -- )
+	[ LIT2 00 -selected ] LDZ DUP2 ADD2 ;&table ADD2 LDA2 JMP2
+	&table [ =&<small> =&<big> =&<big> ]
+	&<big> ( x* y* -- )
+	/range STH2
+	STH2
+	/range
+	&>x ( >_< )
+		GTH2k ?{
+			POP2r POP2r POP2 POP2 JMP2r }
+		DUP2 STH2rk OVR2r STH2r ROT2 STH2
+		&>y ( >_< )
+			EQU2k ?{
+				STH2rk OVR2 <pixel>
+				INC2 !&>y }
+		POP2r POP2 POP2 INC2 !&>x
+	&range ( x* -- high* low* )
+	INC2k INC2 ;width LTH2k [ JMP SWP2 ] POP2 SWP2 #0001 SUB2 DUP2 ;width LTH2 ?{ POP2 #0000 }
+	JMP2r
+	&<small> ( x* y* -- )
+	( >> )
+
+@<pixel> ( x* y* -- )
+	DUP2 ;padding ADD2 .Screen/y DEO2
+	OVR2 ;padding ADD2 .Screen/x DEO2
+	[ LIT2 03 -erase ] LDZ SUB .Screen/pixel DEO
+	DUP #07 AND STH
+	#fff8 AND2 SWP2 DUP #07 AND STH
+	#fff8 AND2 SWP2 #30 SFT2 ADD2 #00 SWPr STHr ADD2 ;canvas ADD2 STHr .erase LDZ ?&<erase>
+	( | addr* bit -- )
+	STH
+	LDAk #80 STHr SFT ORA ROT ROT STA
+	JMP2r
+	&<erase> ( addr* bit -- )
+	STH
+	LDAk #ff80 STHr SFT EOR AND ROT ROT STA
+	JMP2r
+
+@<line> ( x* y* -- )
+	.mouse-y LDZ2 ;padding SUB2 SUB2k STH2k ,&dy STR2
+	,&y STR2
+	POP2 .mouse-x LDZ2 ;padding SUB2 SUB2k STH2k ,&dx STR2
+	,&x STR2
+	POP2 STH2r abs STH2r abs GTH2k [ JMP SWP2 ] POP2 #0000
+	&>l ( -- )
+		OVR2 OVR2 [ LIT2 &dy $2 ] mul-div [ LIT2 &y $2 ] ADD2 STH2
+		OVR2 OVR2 [ LIT2 &dx $2 ] mul-div [ LIT2 &x $2 ] ADD2 STH2r <dot>
+		INC2 GTH2k ?&>l
+	POP2 POP2 JMP2r
+
+@actions [
+	=&<pen> =&<eraser> =&<brush> =&<invert>
+	=<clear> =<save> =<open> ]
+	&<call> ( x -- )
+	#00 SWP DUP2 ADD2 ;actions ADD2 LDA2 JMP2
+	&<pen> ( -- )
+	#0000 !&<select>
+	&<eraser> ( -- )
+	#0101 !&<select>
+	&<brush> ( -- )
+	#0200
+	( >> )
+	&<select> ( tool erase -- )
+	.erase STZ
+	.selected STZ
+	.selected LDZ POP !<draw-buttons>
+	&<invert> ( -- )
+	[ LIT2r ffff ] ;canvas/end ;canvas
+	&> ( -- )
+		LDA2k STH2rk EOR2 OVR2 STA2
+		INC2 INC2 GTH2k ?&>
+	POP2r POP2 POP2
+	( >> )
+
+@<draw-canvas> ( -- )
+	[ LIT2 76 -Screen/auto ] DEO
+	;canvas .Screen/addr DEO2
+	;padding .Screen/x DEO2k INC INC DEO2
+	#0800
+	&> ( -- )
+		[ LIT2 0b -Screen/sprite ] DEO
+		INC GTHk ?&>
+	POP2 JMP2r
+
+@<draw-buttons> ( -- )
+	[ LIT2 05 -Screen/auto ] DEO
+	;buttons-icn .Screen/addr DEO2
+	;padding .Screen/x DEO2
+	;buttons-y .Screen/y DEO2
+	[ LIT2 -buttons-len 00 ]
+	&> ( -- )
+		DUP .selected LDZ EQU DUP ADD INC .Screen/sprite DEO
+		INC GTHk ?&>
+	POP2 JMP2r
+
+@abs ( x* -- |x|* )
+	OVR #80 AND ?negate
+	JMP2r
+
+@negate ( x* -- -x* )
+	#0000 SWP2 SUB2 JMP2r
+
+@mul-div ( a* b* c* -- bc/a* )
+	EOR2k POP STH
+	abs SWP2 abs MUL2 SWP2 OVR STH
+	abs DIV2 #7fff AND2 EORr STHr #80 AND ?negate
+	JMP2r
+
+@<load-theme> ( -- )
+	;&txt .File/name DEO2
+	#0002 .File/length DEO2
+	;&r .File/read DEO2
+	.File/success DEI2 ORA ?{ JMP2r }
+	[ LIT2 &r $2 ] .System/r DEO2
+	;&g .File/read DEO2
+	[ LIT2 &g $2 ] .System/g DEO2
+	;&b .File/read DEO2
+	[ LIT2 &b $2 ] .System/b DEO2
+	JMP2r
+	&txt [ ".theme 00 ]
+
+@meta [
+	00 "Noe 0a "64x64 20 "drawings. 00 00 ]
+
+@buttons-icn [
+	040e 1f3e 7cb8 90e0 001f 2143 868c f800
+	003c 7e7e 7e7e 3c00 fe82 868e 9ebe fe00
+	1010 38fe 3810 1000 1010 7c38 9282 fe00
+	1038 7c10 9282 fe00 ]
+
+@cursor-icn [ 1010 10ee 1010 1000 ]
+
+@note-txt [ ".snarf 00 ]
+
+@canvas $200 &end
+
