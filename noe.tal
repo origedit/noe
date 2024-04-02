@@ -48,7 +48,7 @@
 		.Console/read DEI [ LIT &len $1 ] INCk ,&len STR
 		STZ
 		BRK }
-	#0000 DUP2 .Console/vector DEO2
+	#0000 .Console/vector DEO2
 	<open>
 	BRK
 
@@ -56,7 +56,7 @@
 	[ LIT2 00 -Screen/auto ] DEO
 	;cursor-icn .Screen/addr DEO2
 	[ LIT2 40 -mouse-x ] LDZ2 .mouse-y LDZ2 /<draw>
-	[ LIT2 00 -Mouse/state ] DEI NEQ STHk DUP ADD #41 ADD .Mouse/x DEI2 .Mouse/y DEI2 /<draw>
+	[ LIT2 00 -Mouse/state ] DEI NEQ STHk DUP ADD #43 EOR .Mouse/x DEI2 .Mouse/y DEI2 /<draw>
 	STHr [ LIT &tap $1 ] OVR ,&tap STR
 	DUP2 #0101 NEQ2 ?{ ;<line>
 		/<canvas> }

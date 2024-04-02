@@ -1,6 +1,6 @@
-name=noe
-source=$(name).tal
-rom=$(name).rom
+name:=noe
+source:=$(name).tal
+rom:=$(name).rom
 
 run: $(rom)
 	uxnemu $(rom)
@@ -16,4 +16,7 @@ validate: $(source)
 
 lint: $(source)
 	uxnlin $(source)
+
+clean:
+	rm .snarf
 
