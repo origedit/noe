@@ -1,3 +1,5 @@
+an app for tiny drawings
+
 ![preview image](preview.png)
 
 you need [Uxn](https://100r.co/site/uxn.html) to run this.
